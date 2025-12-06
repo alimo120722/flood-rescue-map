@@ -1,4 +1,4 @@
-import { useEffect, useRef, useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import { MapContainer, TileLayer, Marker, Popup, useMap, Polyline } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
@@ -31,12 +31,12 @@ const createSOSIcon = (isSelected: boolean) => {
   });
 };
 
-// Custom boat marker icon
+// Custom boat marker icon with status-based colors
 const createBoatIcon = (status: RescueBoat["status"], isNearest: boolean) => {
   const colorMap = {
-    available: "#14b8a6",
-    responding: "#f59e0b",
-    returning: "#6b7280",
+    available: "#14b8a6",    // Teal
+    responding: "#f59e0b",   // Amber
+    returning: "#6b7280",    // Gray
   };
   const color = colorMap[status];
   
@@ -82,8 +82,38 @@ export function RescueMap({
 }: RescueMapProps) {
   const mapCenter: [number, number] = [24.8607, 67.0811];
 
-  // Line between selected SOS and nearest boat
-  const connectionLine = useMemo(() => {
+  // Calculate connection lines between responding boats and their target alerts
+  const boatConnections = useMemo(() => {
+    return boats
+      .filter((boat) => boat.status === "responding" && boat.targetSOSId)
+      .map((boat) => {
+        const targetSOS = sosAlerts.find((sos) => sos.id === boat.targetSOSId);
+        if (!targetSOS) return null;
+        
+        const distance = calculateDistance(boat.lat, boat.lon, targetSOS.lat, targetSOS.lon);
+        const eta = estimateArrivalTime(distance);
+        
+        return {
+          boatId: boat.boat_id,
+          boatName: boat.name,
+          sosId: targetSOS.id,
+          line: [
+            [boat.lat, boat.lon] as [number, number],
+            [targetSOS.lat, targetSOS.lon] as [number, number],
+          ],
+          distance,
+          eta,
+          midpoint: {
+            lat: (boat.lat + targetSOS.lat) / 2,
+            lon: (boat.lon + targetSOS.lon) / 2,
+          },
+        };
+      })
+      .filter(Boolean);
+  }, [boats, sosAlerts]);
+
+  // Line between selected SOS and nearest available boat
+  const selectedConnection = useMemo(() => {
     if (!selectedSOS || !nearestBoat) return null;
     return [
       [selectedSOS.lat, selectedSOS.lon] as [number, number],
@@ -106,10 +136,24 @@ export function RescueMap({
 
         <MapController selectedSOS={selectedSOS} />
 
-        {/* Connection line */}
-        {connectionLine && (
+        {/* Connection lines for responding boats */}
+        {boatConnections.map((conn) => conn && (
           <Polyline
-            positions={connectionLine}
+            key={`line-${conn.boatId}`}
+            positions={conn.line}
+            pathOptions={{
+              color: "#f59e0b",
+              weight: 2,
+              dashArray: "8, 8",
+              opacity: 0.9,
+            }}
+          />
+        ))}
+
+        {/* Selected SOS to nearest available boat connection */}
+        {selectedConnection && (
+          <Polyline
+            positions={selectedConnection}
             pathOptions={{
               color: "#14b8a6",
               weight: 3,
@@ -152,6 +196,11 @@ export function RescueMap({
                 <p className="text-xs opacity-70">{boat.boat_id}</p>
                 <p className="mt-1 capitalize">Status: {boat.status}</p>
                 <p>Capacity: {boat.capacity}</p>
+                {boat.status === "responding" && boat.targetSOSId && (
+                  <p className="mt-1 text-amber-600 font-medium">
+                    Target: {boat.targetSOSId}
+                  </p>
+                )}
                 {selectedSOS && (
                   <p className="mt-1 font-medium">
                     Distance:{" "}
@@ -170,6 +219,22 @@ export function RescueMap({
           </Marker>
         ))}
       </MapContainer>
+
+      {/* ETA Labels for active rescues */}
+      <div className="absolute top-6 left-6 z-[1000] space-y-2 max-h-[200px] overflow-y-auto">
+        {boatConnections.map((conn) => conn && (
+          <div
+            key={`eta-${conn.boatId}`}
+            className="bg-warning/90 backdrop-blur-sm text-warning-foreground rounded-lg px-3 py-2 text-sm shadow-lg"
+          >
+            <span className="font-semibold">{conn.boatName}</span>
+            <span className="mx-2">→</span>
+            <span className="opacity-80">{conn.sosId}</span>
+            <span className="ml-3 font-bold">{formatDistance(conn.distance)}</span>
+            <span className="ml-2 text-xs opacity-80">ETA: {conn.eta}</span>
+          </div>
+        ))}
+      </div>
 
       {/* Map Legend */}
       <div className="absolute bottom-6 right-6 bg-card/95 backdrop-blur-sm border border-border rounded-lg p-3 z-[1000]">

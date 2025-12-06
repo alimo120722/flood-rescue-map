@@ -16,6 +16,12 @@ export function useRescueData() {
   const [selectedSOS, setSelectedSOS] = useState<SOSAlert | null>(null);
   const [nearestBoat, setNearestBoat] = useState<RescueBoat | null>(null);
   const [isSimulating, setIsSimulating] = useState(true);
+  const alertsRef = useRef<SOSAlert[]>(sosAlerts);
+
+  // Keep ref in sync
+  useEffect(() => {
+    alertsRef.current = sosAlerts;
+  }, [sosAlerts]);
 
   // Find nearest boat to selected SOS (for UI display only)
   useEffect(() => {
@@ -59,16 +65,19 @@ export function useRescueData() {
     if (!isSimulating) return;
 
     const interval = setInterval(() => {
+      const currentAlerts = alertsRef.current;
+      const alertsToRemove: string[] = [];
+
       setBoats((prevBoats) => {
+        // Get alerts that are already being responded to
+        const assignedAlertIds = prevBoats
+          .filter((b) => b.status === "responding" && b.targetSOSId)
+          .map((b) => b.targetSOSId);
+
         return prevBoats.map((boat) => {
           // If boat is available, find nearest unassigned SOS
           if (boat.status === "available") {
-            // Get alerts that no other boat is responding to
-            const assignedAlertIds = prevBoats
-              .filter((b) => b.status === "responding" && b.targetSOSId)
-              .map((b) => b.targetSOSId);
-
-            const unassignedAlerts = sosAlerts.filter(
+            const unassignedAlerts = currentAlerts.filter(
               (sos) => !assignedAlertIds.includes(sos.id)
             );
 
@@ -98,6 +107,9 @@ export function useRescueData() {
               }
             }
 
+            // Mark this alert as assigned so other boats don't pick it
+            assignedAlertIds.push(nearestAlert.id);
+
             console.log(`[DISPATCH] ${boat.name} responding to ${nearestAlert.id}`);
             return {
               ...boat,
@@ -109,7 +121,7 @@ export function useRescueData() {
 
           // If boat is responding, move towards target SOS
           if (boat.status === "responding" && boat.targetSOSId) {
-            const targetSOS = sosAlerts.find((sos) => sos.id === boat.targetSOSId);
+            const targetSOS = currentAlerts.find((sos) => sos.id === boat.targetSOSId);
 
             if (!targetSOS) {
               // Alert was removed, return home
@@ -126,8 +138,9 @@ export function useRescueData() {
             const distance = Math.sqrt(dx * dx + dy * dy);
 
             if (distance < ARRIVAL_THRESHOLD) {
-              // Arrived at SOS - will be removed and boat returns
+              // Arrived at SOS - mark for removal and boat returns
               console.log(`[RESCUE] ${boat.name} arrived at ${targetSOS.id}`);
+              alertsToRemove.push(targetSOS.id);
               return {
                 ...boat,
                 status: "returning" as const,
@@ -178,46 +191,21 @@ export function useRescueData() {
         });
       });
 
-      // Remove alerts that boats have arrived at
-      setSOSAlerts((prevAlerts) => {
-        const alertsToRemove: string[] = [];
-
-        setBoats((currentBoats) => {
-          currentBoats.forEach((boat) => {
-            if (boat.status === "returning" && !boat.targetSOSId) {
-              // This boat just finished a rescue - check if any alert should be removed
-              // We mark this in the previous iteration when status changes to returning
-            }
-          });
-          return currentBoats;
-        });
-
-        // Check which alerts have been reached by responding boats
-        return prevAlerts.filter((alert) => {
-          const respondingBoat = boats.find(
-            (b) => b.targetSOSId === alert.id && b.status === "responding"
-          );
-          if (respondingBoat) {
-            const distance = Math.sqrt(
-              Math.pow(alert.lon - respondingBoat.lon, 2) +
-              Math.pow(alert.lat - respondingBoat.lat, 2)
-            );
-            if (distance < ARRIVAL_THRESHOLD) {
-              console.log(`[RESOLVED] Alert ${alert.id} resolved`);
-              // Clear selected if this was the selected one
-              if (selectedSOS?.id === alert.id) {
-                setSelectedSOS(null);
-              }
-              return false;
-            }
+      // Remove resolved alerts after boat state update
+      if (alertsToRemove.length > 0) {
+        setSOSAlerts((prev) => {
+          const newAlerts = prev.filter((a) => !alertsToRemove.includes(a.id));
+          // Clear selected if it was removed
+          if (selectedSOS && alertsToRemove.includes(selectedSOS.id)) {
+            setSelectedSOS(null);
           }
-          return true;
+          return newAlerts;
         });
-      });
+      }
     }, 500);
 
     return () => clearInterval(interval);
-  }, [isSimulating, sosAlerts, selectedSOS]);
+  }, [isSimulating, selectedSOS]);
 
   const addSOS = useCallback(() => {
     const newSOS = generateRandomSOS();
