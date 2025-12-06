@@ -18,6 +18,8 @@ export interface RescueBoat {
   status: "available" | "responding" | "returning";
   capacity: number;
   last_update: string;
+  targetSOSId?: string; // ID of the SOS alert the boat is responding to
+  homeBase: { lat: number; lon: number }; // Where the boat returns to
 }
 
 export interface BoatRoute {
