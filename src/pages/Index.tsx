@@ -16,9 +16,13 @@ const Index = () => {
     nearestBoat,
     isSimulating,
     boatRoutes,
+    floodZones,
+    safePoints,
     addSOS,
     assignBoat,
     toggleSimulation,
+    simulateFlood,
+    simulateGiantFlood,
   } = useRescueData();
 
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -29,10 +33,35 @@ const Index = () => {
   };
 
   const handleAddSOS = () => {
+    if (floodZones.length === 0) {
+      toast({
+        title: "No Flood Zone",
+        description: "Create a flood first before adding SOS alerts",
+        variant: "destructive",
+      });
+      return;
+    }
     addSOS();
     toast({
       title: "New SOS Alert",
       description: "A new emergency alert has been received!",
+      variant: "destructive",
+    });
+  };
+
+  const handleSimulateFlood = () => {
+    simulateFlood();
+    toast({
+      title: "Flood Zone Created",
+      description: "A new flood zone has appeared on the map",
+    });
+  };
+
+  const handleSimulateGiantFlood = () => {
+    simulateGiantFlood();
+    toast({
+      title: "Giant Flood!",
+      description: "Massive flooding across the entire region with multiple SOS alerts",
       variant: "destructive",
     });
   };
@@ -61,9 +90,12 @@ const Index = () => {
           alerts={sosAlerts}
           selectedSOS={selectedSOS}
           isSimulating={isSimulating}
+          hasFloodZones={floodZones.length > 0}
           onSelectSOS={handleSelectSOS}
           onAddSOS={handleAddSOS}
           onToggleSimulation={toggleSimulation}
+          onSimulateFlood={handleSimulateFlood}
+          onSimulateGiantFlood={handleSimulateGiantFlood}
         />
 
         <main className="flex-1 relative">
@@ -73,6 +105,8 @@ const Index = () => {
             selectedSOS={selectedSOS}
             nearestBoat={nearestBoat}
             boatRoutes={boatRoutes}
+            floodZones={floodZones}
+            safePoints={safePoints}
             onSelectSOS={handleSelectSOS}
           />
         </main>

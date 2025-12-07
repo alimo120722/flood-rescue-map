@@ -141,7 +141,7 @@
   }
 }
 
-/* Leaflet custom styles */
+/* Leaflet custom styles - CRITICAL Z-INDEX FIX */
 .leaflet-container {
   background: hsl(222 47% 8%) !important;
   font-family: 'Inter', sans-serif !important;
@@ -157,24 +157,64 @@
   background: hsl(217 33% 25%) !important;
 }
 
+/* Popup z-index fixes - ensure popups are ALWAYS on top */
+.leaflet-pane {
+  z-index: 400;
+}
+
+.leaflet-tile-pane {
+  z-index: 200;
+}
+
+.leaflet-overlay-pane {
+  z-index: 400;
+}
+
+.leaflet-shadow-pane {
+  z-index: 500;
+}
+
+.leaflet-marker-pane {
+  z-index: 600;
+}
+
+.leaflet-tooltip-pane {
+  z-index: 650;
+}
+
+.leaflet-popup-pane {
+  z-index: 99999 !important;
+}
+
+.leaflet-popup {
+  z-index: 99999 !important;
+  position: relative !important;
+}
+
 .leaflet-popup-content-wrapper {
   background: hsl(217 33% 17%) !important;
   color: hsl(210 40% 98%) !important;
   border-radius: 0.75rem !important;
-  box-shadow: 0 4px 24px hsl(222 47% 5% / 0.5) !important;
-  z-index: 10000 !important;
+  box-shadow: 0 4px 24px hsl(222 47% 5% / 0.8), 0 0 0 1px hsl(217 33% 30%) !important;
+  z-index: 99999 !important;
+  position: relative !important;
+}
+
+.leaflet-popup-tip-container {
+  z-index: 99999 !important;
 }
 
 .leaflet-popup-tip {
   background: hsl(217 33% 17%) !important;
+  z-index: 99999 !important;
 }
 
-.leaflet-popup {
-  z-index: 10000 !important;
+.rescue-popup {
+  z-index: 99999 !important;
 }
 
-.leaflet-popup-pane {
-  z-index: 10000 !important;
+.rescue-map-container .leaflet-popup-pane {
+  z-index: 99999 !important;
 }
 
 .custom-sos-marker {
@@ -207,6 +247,24 @@
   height: 34px;
   box-shadow: 0 0 20px hsl(173 80% 40% / 0.8), 0 0 40px hsl(173 80% 40% / 0.4);
   animation: pulse-rescue 1s ease-in-out infinite;
+}
+
+.safe-point-marker {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  background: hsl(142 76% 36%);
+  border-radius: 50%;
+  border: 3px solid hsl(142 76% 50%);
+  box-shadow: 0 0 15px hsl(142 76% 36% / 0.6);
+  animation: pulse-rescue 2s ease-in-out infinite;
+}
+
+/* Flood overlay effect */
+.flood-overlay {
+  filter: hue-rotate(180deg) saturate(2) brightness(0.7);
 }
 
 /* Scrollbar styling */
