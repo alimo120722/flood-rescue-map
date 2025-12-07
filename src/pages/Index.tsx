@@ -15,6 +15,7 @@ const Index = () => {
     setSelectedSOS,
     nearestBoat,
     isSimulating,
+    boatRoutes,
     addSOS,
     assignBoat,
     toggleSimulation,
@@ -71,6 +72,7 @@ const Index = () => {
             boats={boats}
             selectedSOS={selectedSOS}
             nearestBoat={nearestBoat}
+            boatRoutes={boatRoutes}
             onSelectSOS={handleSelectSOS}
           />
         </main>

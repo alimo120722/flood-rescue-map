@@ -162,10 +162,19 @@
   color: hsl(210 40% 98%) !important;
   border-radius: 0.75rem !important;
   box-shadow: 0 4px 24px hsl(222 47% 5% / 0.5) !important;
+  z-index: 10000 !important;
 }
 
 .leaflet-popup-tip {
   background: hsl(217 33% 17%) !important;
+}
+
+.leaflet-popup {
+  z-index: 10000 !important;
+}
+
+.leaflet-popup-pane {
+  z-index: 10000 !important;
 }
 
 .custom-sos-marker {

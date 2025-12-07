@@ -4,12 +4,14 @@ import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { SOSAlert, RescueBoat } from "@/types/rescue";
 import { calculateDistance, formatDistance, estimateArrivalTime } from "@/utils/distance";
+import { RoutePoint } from "@/utils/routing";
 
 interface RescueMapProps {
   sosAlerts: SOSAlert[];
   boats: RescueBoat[];
   selectedSOS: SOSAlert | null;
   nearestBoat: RescueBoat | null;
+  boatRoutes: Map<string, RoutePoint[]>;
   onSelectSOS: (sos: SOSAlert) => void;
 }
 
@@ -78,11 +80,13 @@ export function RescueMap({
   boats,
   selectedSOS,
   nearestBoat,
+  boatRoutes,
   onSelectSOS,
 }: RescueMapProps) {
   const mapCenter: [number, number] = [24.8607, 67.0811];
 
   // Calculate connection lines between responding boats and their target alerts
+  // Uses actual routes when available, falls back to straight line
   const boatConnections = useMemo(() => {
     return boats
       .filter((boat) => boat.status === "responding" && boat.targetSOSId)
@@ -93,24 +97,23 @@ export function RescueMap({
         const distance = calculateDistance(boat.lat, boat.lon, targetSOS.lat, targetSOS.lon);
         const eta = estimateArrivalTime(distance);
         
+        // Get route if available, otherwise use straight line
+        const route = boatRoutes.get(boat.boat_id);
+        const routePositions: [number, number][] = route && route.length > 0
+          ? [[boat.lat, boat.lon], ...route.map(p => [p.lat, p.lon] as [number, number])]
+          : [[boat.lat, boat.lon], [targetSOS.lat, targetSOS.lon]];
+        
         return {
           boatId: boat.boat_id,
           boatName: boat.name,
           sosId: targetSOS.id,
-          line: [
-            [boat.lat, boat.lon] as [number, number],
-            [targetSOS.lat, targetSOS.lon] as [number, number],
-          ],
+          routePositions,
           distance,
           eta,
-          midpoint: {
-            lat: (boat.lat + targetSOS.lat) / 2,
-            lon: (boat.lon + targetSOS.lon) / 2,
-          },
         };
       })
       .filter(Boolean);
-  }, [boats, sosAlerts]);
+  }, [boats, sosAlerts, boatRoutes]);
 
   // Line between selected SOS and nearest available boat
   const selectedConnection = useMemo(() => {
@@ -136,16 +139,15 @@ export function RescueMap({
 
         <MapController selectedSOS={selectedSOS} />
 
-        {/* Connection lines for responding boats */}
+        {/* Route lines for responding boats (street-based) */}
         {boatConnections.map((conn) => conn && (
           <Polyline
-            key={`line-${conn.boatId}`}
-            positions={conn.line}
+            key={`route-${conn.boatId}`}
+            positions={conn.routePositions}
             pathOptions={{
               color: "#f59e0b",
-              weight: 2,
-              dashArray: "8, 8",
-              opacity: 0.9,
+              weight: 3,
+              opacity: 0.85,
             }}
           />
         ))}
